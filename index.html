@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>apocalips(IA) — La Forgia del Lettore</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-card: #111111;
+  --bg-card-hover: #1a1111;
+  --text: #d4cec4;
+  --text-dim: #6b6560;
+  --text-bright: #f0ebe4;
+  --red: #8b1a1a;
+  --red-bright: #c41e1e;
+  --red-glow: rgba(196, 30, 30, 0.15);
+  --red-dim: #5a1212;
+  --border: #2a2220;
+  --border-active: #8b1a1a;
+  --garamond: 'EB Garamond', 'Garamond', 'Georgia', serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--garamond);
+  font-size: 18px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grain overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+/* SCREENS */
+.screen { display: none; animation: fadeIn 0.8s ease; }
+.screen.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseRed {
+  0%, 100% { box-shadow: 0 0 0 0 var(--red-glow); }
+  50% { box-shadow: 0 0 30px 5px var(--red-glow); }
+}
+
+@keyframes slashIn {
+  from { width: 0; }
+  to { width: 60px; }
+}
+
+/* TYPOGRAPHY */
+h1 {
+  font-family: var(--garamond);
+  font-size: 2.8em;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+h1 span.red { color: var(--red-bright); }
+
+h2 {
+  font-family: var(--garamond);
+  font-size: 1.6em;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+h3 {
+  font-family: var(--garamond);
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--red-bright);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+p { margin-bottom: 16px; }
+p.dim { color: var(--text-dim); font-size: 0.9em; }
+p.italic { font-style: italic; }
+p.center { text-align: center; }
+
+.separator {
+  text-align: center;
+  color: var(--red);
+  letter-spacing: 0.5em;
+  margin: 32px 0;
+  font-size: 0.8em;
+}
+
+.slash {
+  display: block;
+  width: 60px;
+  height: 1px;
+  background: var(--red);
+  margin: 40px auto;
+  animation: slashIn 0.6s ease;
+}
+
+/* PROGRESS BAR */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red-dim), var(--red-bright));
+  transition: width 0.5s ease;
+  z-index: 1000;
+}
+
+/* BUTTONS */
+.btn {
+  display: inline-block;
+  font-family: var(--garamond);
+  font-size: 1.1em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--red);
+  padding: 14px 40px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:hover {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 0 20px var(--red-glow);
+}
+
+.btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background: transparent;
+  color: var(--text-bright);
+  box-shadow: none;
+}
+
+.btn-center { text-align: center; margin-top: 32px; }
+
+/* SIGN SELECTOR */
+.signs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.sign-card {
+  border: 1px solid var(--border);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--bg-card);
+}
+
+.sign-card:hover {
+  border-color: var(--red);
+  background: var(--bg-card-hover);
+}
+
+.sign-card.selected {
+  border-color: var(--red-bright);
+  background: rgba(139, 26, 26, 0.15);
+  box-shadow: 0 0 15px var(--red-glow);
+}
+
+.sign-card .sign-symbol {
+  font-size: 1.8em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.sign-card .sign-name {
+  font-weight: 600;
+  color: var(--text-bright);
+  font-size: 0.95em;
+}
+
+.sign-card .sign-dates {
+  color: var(--text-dim);
+  font-size: 0.75em;
+  margin-top: 2px;
+}
+
+/* SCENARIO OPTIONS */
+.scenario-block {
+  margin-bottom: 40px;
+}
+
+.scenario-label {
+  color: var(--red);
+  font-weight: 600;
+  font-size: 0.85em;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.scenario-text {
+  font-size: 1.05em;
+  color: var(--text-bright);
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.option {
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: var(--bg-card);
+  line-height: 1.6;
+  font-size: 0.95em;
+}
+
+.option:hover {
+  border-color: var(--red);
+  background: var(--bg-card-hover);
+}
+
+.option.selected {
+  border-color: var(--red-bright);
+  background: rgba(139, 26, 26, 0.12);
+  border-left: 3px solid var(--red-bright);
+}
+
+.option .option-letter {
+  color: var(--red-bright);
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* STEP INDICATOR */
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 40px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.3s ease;
+}
+
+.step-dot.active { background: var(--red-bright); box-shadow: 0 0 8px var(--red-glow); }
+.step-dot.done { background: var(--red-dim); }
+
+/* RESULT SCREEN */
+.result-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.lama-number {
+  font-size: 4em;
+  font-weight: 700;
+  color: var(--red-bright);
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 40px var(--red-glow);
+  line-height: 1;
+}
+
+.lama-formula {
+  color: var(--text-dim);
+  font-size: 0.9em;
+  margin-top: 8px;
+  letter-spacing: 0.05em;
+}
+
+.result-section {
+  border-top: 1px solid var(--border);
+  padding: 24px 0;
+}
+
+.result-section h3 {
+  font-size: 0.85em;
+  margin-bottom: 12px;
+}
+
+.fragment-text {
+  font-style: italic;
+  color: var(--text);
+  line-height: 1.8;
+}
+
+/* LOADING */
+.forging {
+  text-align: center;
+  padding: 60px 0;
+}
+
+.forging-text {
+  color: var(--red-bright);
+  font-size: 1.2em;
+  font-style: italic;
+  animation: pulseRed 2s ease infinite;
+}
+
+.forging-dots::after {
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+/* GENERATED LAMA */
+.lama-full {
+  border: 1px solid var(--red-dim);
+  padding: 32px 24px;
+  margin-top: 24px;
+  background: linear-gradient(180deg, rgba(139,26,26,0.05) 0%, transparent 100%);
+}
+
+.lama-full .lama-odore,
+.lama-full .lama-frase {
+  font-style: italic;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.lama-full .lama-frase {
+  font-size: 1.15em;
+  color: var(--text-bright);
+  text-align: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+.lama-full .section-title {
+  color: var(--red);
+  font-weight: 600;
+  font-size: 0.8em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.lama-full .section-body {
+  margin-bottom: 16px;
+  line-height: 1.8;
+}
+
+/* DISCLAIMER */
+.disclaimer {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.8em;
+  font-style: italic;
+}
+
+/* MOBILE */
+@media (max-width: 480px) {
+  .container { padding: 24px 16px; }
+  h1 { font-size: 2.2em; }
+  .signs-grid { grid-template-columns: repeat(2, 1fr); }
+  .lama-number { font-size: 3em; }
+  body { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="container">
+
+<!-- ============ SCREEN 0: INTRO ============ -->
+<div class="screen active" id="screen-intro">
+  <h1>apocalips<span class="red">(IA)</span></h1>
+  <h2>La Forgia del Lettore</h2>
+  <div class="slash"></div>
+  <p>Hai letto le Lame degli altri. Hai visto come tagliano. Hai sentito il loro odore, il loro sangue, il loro codec.</p>
+  <p>Ora forgia la tua.</p>
+  <p>Non è un gioco. Non è un test di personalità da condividere sui social tra una storia e un reel. È un taglio. L'ultimo. Quello che ti incide la carne per davvero.</p>
+  <p>Non sceglierai niente. Risponderai a degli scenari. E il sistema deciderà per te.</p>
+  <p>Perché il punto è proprio questo: tu non sai chi sei. Il taglio lo sa.</p>
+  <div class="separator">• • •</div>
+  <p class="dim">Ci sono quattro sezioni. Una per ogni Sigillo. Per il Segno, ti basta sapere quando sei nato. Per gli altri tre — Cervello, Voce, Appartenenza — leggerai degli scenari. Non ci sono risposte giuste. Non ci sono risposte sbagliate. C'è solo ciò che faresti davvero, a luci spente, quando nessuno guarda.</p>
+  <div class="btn-center">
+    <button class="btn" onclick="goTo('screen-segno')">Entra</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 1: SEGNO ============ -->
+<div class="screen" id="screen-segno">
+  <div class="step-indicator" id="steps"></div>
+  <h3>Prima Ferita — Il Segno</h3>
+  <p class="italic">La freccia che ti ha ucciso prima di nascere</p>
+  <p>Questa è l'unica domanda diretta. Non c'è niente da dedurre. Il Segno è un fatto.</p>
+  <p><strong>Di che segno sei?</strong></p>
+  <div class="signs-grid" id="signsGrid"></div>
+  <div class="btn-center">
+    <button class="btn" id="btnSegno" disabled onclick="goTo('screen-cervello')">Avanti</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: CERVELLO ============ -->
+<div class="screen" id="screen-cervello">
+  <div class="step-indicator" id="steps2"></div>
+  <h3>Seconda Ferita — Il Cervello</h3>
+  <p class="italic">La domanda che ti uccide ogni mattina</p>
+  <p>Leggi ogni scenario. Non pensare troppo. Scegli la reazione che ti somiglia di più, non quella che vorresti avere.</p>
+  <div id="cervelloScenari"></div>
+  <div class="btn-center">
+    <button class="btn" id="btnCervello" disabled onclick="goTo('screen-voce')">Avanti</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: VOCE ============ -->
+<div class="screen" id="screen-voce">
+  <div class="step-indicator" id="steps3"></div>
+  <h3>Terza Ferita — La Voce</h3>
+  <p class="italic">Il modo in cui entri nelle ossa degli altri</p>
+  <p>Sei stili. Sei modi di vibrare l'aria. Leggi gli scenari e scegli — non quello che diresti in pubblico, ma quello che faresti al buio.</p>
+  <div id="voceScenari"></div>
+  <div class="btn-center">
+    <button class="btn" id="btnVoce" disabled onclick="goTo('screen-appartenenza')">Avanti</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 4: APPARTENENZA ============ -->
+<div class="screen" id="screen-appartenenza">
+  <div class="step-indicator" id="steps4"></div>
+  <h3>Quarta Ferita — L'Appartenenza</h3>
+  <p class="italic">Il posto che occupi quando il mondo crolla</p>
+  <p>Sei posizioni arcaiche. Sei modi di stare nel gruppo — o fuori dal gruppo. Leggi gli scenari. Rispondi con la pancia, non con la testa.</p>
+  <div id="appartenenzaScenari"></div>
+  <div class="btn-center">
+    <button class="btn" id="btnAppartenenza" disabled onclick="forgeLama()">Forgia la tua Lama</button>
+  </div>
+</div>
+
+<!-- ============ SCREEN 5: FORGING ============ -->
+<div class="screen" id="screen-forging">
+  <div class="forging">
+    <div class="slash"></div>
+    <p class="forging-text">La lama si sta forgiando<span class="forging-dots"></span></p>
+    <p class="dim" style="margin-top:24px">I quattro Sigilli stanno collidendo.</p>
+  </div>
+</div>
+
+<!-- ============ SCREEN 6: RESULT ============ -->
+<div class="screen" id="screen-result">
+  <div class="result-header">
+    <p class="dim" style="letter-spacing:0.2em;text-transform:uppercase;font-size:0.75em;margin-bottom:8px">La tua Lama</p>
+    <div class="lama-number" id="lamaNumber"></div>
+    <div class="lama-formula" id="lamaFormula"></div>
+  </div>
+
+  <div class="result-section">
+    <h3>Il Segno — La direzione del taglio</h3>
+    <p class="fragment-text" id="fragSegno"></p>
+  </div>
+
+  <div class="result-section">
+    <h3>Il Cervello — Il respiro della gabbia</h3>
+    <p class="fragment-text" id="fragCervello"></p>
+  </div>
+
+  <div class="result-section">
+    <h3>La Voce — Il codec dell'anima</h3>
+    <p class="fragment-text" id="fragVoce"></p>
+  </div>
+
+  <div class="result-section">
+    <h3>L'Appartenenza — Il sangue del legame</h3>
+    <p class="fragment-text" id="fragAppartenenza"></p>
+  </div>
+
+  <div class="slash"></div>
+
+  <div id="lamaFull"></div>
+
+  <div class="disclaimer">
+    Questo è un sistema narrativo. Gli archetipi sono costruzioni letterarie.<br>
+    apocalips(IA) — Vik Planner
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const SIGNS = [
+  { name: 'Ariete', symbol: '♈', dates: '21 mar – 19 apr', num: 1 },
+  { name: 'Toro', symbol: '♉', dates: '20 apr – 20 mag', num: 2 },
+  { name: 'Gemelli', symbol: '♊', dates: '21 mag – 20 giu', num: 3 },
+  { name: 'Cancro', symbol: '♋', dates: '21 giu – 22 lug', num: 4 },
+  { name: 'Leone', symbol: '♌', dates: '23 lug – 22 ago', num: 5 },
+  { name: 'Vergine', symbol: '♍', dates: '23 ago – 22 set', num: 6 },
+  { name: 'Bilancia', symbol: '♎', dates: '23 set – 22 ott', num: 7 },
+  { name: 'Scorpione', symbol: '♏', dates: '23 ott – 21 nov', num: 8 },
+  { name: 'Sagittario', symbol: '♐', dates: '22 nov – 21 dic', num: 9 },
+  { name: 'Capricorno', symbol: '♑', dates: '22 dic – 19 gen', num: 10 },
+  { name: 'Acquario', symbol: '♒', dates: '20 gen – 18 feb', num: 11 },
+  { name: 'Pesci', symbol: '♓', dates: '19 feb – 20 mar', num: 12 }
+];
+
+const LAVORI_ZODIACALI = {
+  'Ariete': 'Guerriero', 'Toro': 'Costruttore', 'Gemelli': 'Comunicatore',
+  'Cancro': 'Custode', 'Leone': 'Leader', 'Vergine': 'Analista',
+  'Bilancia': 'Diplomatico', 'Scorpione': 'Stratega', 'Sagittario': 'Esploratore',
+  'Capricorno': 'Pianificatore', 'Acquario': 'Innovatore', 'Pesci': 'Sognatore'
+};
+
+const IA_MAP = {
+  'Ariete': 'Grok', 'Toro': 'Perplexity', 'Gemelli': 'Gemini',
+  'Cancro': 'Pi', 'Leone': 'Midjourney', 'Vergine': 'Claude',
+  'Bilancia': 'Llama', 'Scorpione': 'Mistral', 'Sagittario': 'Copilot (Bing)',
+  'Capricorno': 'ChatGPT', 'Acquario': 'Copilot (GitHub)', 'Pesci': 'Replika'
+};
+
+const QUADRANTI = ['Logico', 'Visionario', 'Empatico', 'Organizzato']; // A B C D → 1 2 3 4
+const VOCI = ['Assertivo', 'Persuasivo', 'Introverso', 'Aggressivo', 'Manipolatorio', 'Passivo']; // A-F → 1-6
+const APPARTENENZE = ['Tribale', 'Civico', 'Imparziale', 'Fratturato', 'Esiliato', 'Universale']; // 1-6
+const LAVORI_APP = ['Custode', 'Messaggero', 'Giudice', 'Scismatico', 'Eremita', 'Santo'];
+
+// SCENARI CERVELLO
+const SCENARI_CERVELLO = [
+  {
+    id: 'C1',
+    text: 'Sei in riunione. Il progetto sta andando a rotoli. Il capo chiede: «Cosa facciamo?»',
+    options: [
+      { letter: 'A', text: 'Tiri fuori i numeri. Dati, percentuali, cause. Se non si capisce il problema, non si risolve.' },
+      { letter: 'B', text: 'Proponi un\'idea completamente diversa. Forse il progetto va rifatto da zero, non rattoppato.' },
+      { letter: 'C', text: 'Guardi le facce dei colleghi. Prima di risolvere il progetto, devi capire come stanno le persone.' },
+      { letter: 'D', text: 'Chiedi un piano d\'azione con scadenze. Chi fa cosa, entro quando. Il resto sono chiacchiere.' }
+    ]
+  },
+  {
+    id: 'C2',
+    text: 'Ti danno in mano un problema che nessuno ha mai risolto prima.',
+    options: [
+      { letter: 'A', text: 'Lo scomponi in parti. Se analizzi ogni pezzo, la soluzione emerge dai dati.' },
+      { letter: 'B', text: 'Ti ecciti. Un problema nuovo è una possibilità nuova. Cominci a immaginare soluzioni che non esistono ancora.' },
+      { letter: 'C', text: 'Chiedi chi altro ci ha provato e cosa ha sentito. L\'esperienza degli altri è la prima mappa.' },
+      { letter: 'D', text: 'Cerchi precedenti. Protocolli. Manuali. Qualcuno deve averlo già catalogato.' }
+    ]
+  },
+  {
+    id: 'C3',
+    text: 'Devi prendere una decisione importante entro stasera. Non hai tutte le informazioni.',
+    options: [
+      { letter: 'A', text: 'Raccogli il massimo di dati possibile nel tempo che hai. Decidi sulla base di ciò che è misurabile.' },
+      { letter: 'B', text: 'Vai a istinto. Hai una visione chiara di dove vuoi arrivare, i dettagli si sistemeranno.' },
+      { letter: 'C', text: 'Chiami qualcuno di cui ti fidi e ne parli. Hai bisogno di sentire la decisione, non solo di pensarla.' },
+      { letter: 'D', text: 'Fai una lista pro/contro ordinata. Poi scegli l\'opzione con meno rischi e più controllo.' }
+    ]
+  },
+  {
+    id: 'C4',
+    text: 'Un amico ti chiede un consiglio su una scelta di vita importante.',
+    options: [
+      { letter: 'A', text: 'Gli fai le domande giuste per fargli vedere i fatti che sta ignorando.' },
+      { letter: 'B', text: 'Gli racconti una storia. Un\'analogia. Qualcosa che gli apra una prospettiva che non aveva considerato.' },
+      { letter: 'C', text: 'Lo ascolti. A lungo. E quando parli, gli dici cosa hai sentito nella sua voce più che nelle sue parole.' },
+      { letter: 'D', text: 'Gli fai uno schema. Opzione 1, opzione 2, conseguenze di ciascuna. Così può decidere con ordine.' }
+    ]
+  }
+];
+
+// SCENARI VOCE
+const SCENARI_VOCE = [
+  {
+    id: 'V1',
+    text: 'Il tuo vicino di casa parcheggia ogni sera nel tuo posto auto. Stasera lo incroci sulle scale.',
+    options: [
+      { letter: 'A', text: '«Quello è il mio posto. Da domani parcheggi altrove.» Fine della conversazione.' },
+      { letter: 'B', text: '«Senti, ho notato che usiamo gli stessi orari. Ti propongo una soluzione che funziona per entrambi.»' },
+      { letter: 'C', text: '«Se domani trovo ancora la tua macchina lì, chiamo il carro attrezzi senza avvisarti.»' },
+      { letter: 'D', text: 'Non dici niente. Sali le scale, chiudi la porta, ci pensi per tre giorni senza fare nulla.' },
+      { letter: 'E', text: 'Nei giorni successivi, ti lamenti con tutti i condomini del suo comportamento. Quando lo rincontri, sorridi.' },
+      { letter: 'F', text: '«Va bene, non importa, parcheggio io da un\'altra parte.» Anche se importa.' }
+    ]
+  },
+  {
+    id: 'V2',
+    text: 'Al lavoro, un collega si prende il merito di un\'idea che era tua. Il capo lo elogia davanti a tutti.',
+    options: [
+      { letter: 'A', text: 'Alzi la mano: «Quella proposta l\'ho scritta io. Posso mostrare la mail originale.»' },
+      { letter: 'B', text: 'Dopo la riunione, vai dal capo e spieghi la situazione con calma, portando prove e una soluzione.' },
+      { letter: 'C', text: 'Lo affronti nel corridoio: «Se lo rifai, la prossima volta parlo davanti a tutti.»' },
+      { letter: 'D', text: 'Non dici niente a nessuno. Brucia dentro, ma fuori non esce nulla.' },
+      { letter: 'E', text: 'Cominci a costruire alleanze. Parli con i colleghi giusti. Quando sarà il momento, sarà lui a dover spiegare.' },
+      { letter: 'F', text: 'Lasci correre. Tanto è solo un\'idea. Ce ne saranno altre. Forse.' }
+    ]
+  },
+  {
+    id: 'V3',
+    text: 'Tuo figlio adolescente ti dice che vuole lasciare la scuola per inseguire un sogno che a te sembra irrealistico.',
+    options: [
+      { letter: 'A', text: '«No. Punto. Finisci la scuola, poi fai quello che vuoi.»' },
+      { letter: 'B', text: '«Parliamone. Fammi capire il tuo piano e vediamo insieme se regge.»' },
+      { letter: 'C', text: '«Se ti azzardi a mollare, scordi la paghetta, il telefono e la playstation.»' },
+      { letter: 'D', text: 'Non dici niente. Ci pensi da solo per settimane. Forse ne parli con il partner, forse no.' },
+      { letter: 'E', text: 'Lo porti a conoscere qualcuno che ha fatto quella strada. Che gli racconti la verità. Senza che tu debba dire una parola.' },
+      { letter: 'F', text: '«Se è quello che vuoi... va bene.» Anche se non va bene per niente.' }
+    ]
+  }
+];
+
+// SCENARI APPARTENENZA (versione corretta di Luigi)
+const SCENARI_APPARTENENZA = [
+  {
+    id: 'A1',
+    text: 'È Natale. Tuo fratello ha litigato con tuo padre sei mesi fa. Non si parlano. Tua madre ti chiede di convincere tuo fratello a venire al pranzo.',
+    options: [
+      { letter: '1', text: 'Chiami tuo fratello e insisti. La famiglia è la famiglia, punto. Si viene, si stringe i denti, si sta insieme.' },
+      { letter: '2', text: 'Prima di muoverti, chiedi in giro. Ne parli col parroco, con la vicina che conosce la situazione, con un amico di famiglia. Vuoi capire chi ha ragione davvero, non fidarti solo della versione di casa. Alla fine, se tutti dicono che tuo fratello ha esagerato, lo chiami e glielo dici chiaro.' },
+      { letter: '3', text: 'Ascolti tuo fratello e ascolti tuo padre. Poi dici a tua madre esattamente com\'è la situazione, senza prendere parti.' },
+      { letter: '4', text: 'Provi a smuovere la situazione. Parli con tuo padre, poi con tuo fratello, cercando di far accadere qualcosa subito. Quando vedi una frattura, senti che qualcuno deve agire per primo.' },
+      { letter: '5', text: 'Non vai neanche tu. Ti trovi una scusa e passi il Natale per conto tuo. Meglio soli che in trincea.' },
+      { letter: '6', text: 'Vai al pranzo e stai con tuo padre. Lo abbracci, lo ascolti, gli dai ragione quando serve. Poi il pomeriggio vai da tuo fratello con gli avanzi. Lo abbracci, lo ascolti, gli dai ragione quando serve. Non stai facendo diplomazia. Li senti entrambi, davvero, come se il dolore di ognuno fosse il tuo.' }
+    ]
+  },
+  {
+    id: 'A2',
+    text: 'Il tuo migliore amico ti chiede di mentire per lui. Dice che è nei guai e che una tua testimonianza falsa lo salverebbe.',
+    options: [
+      { letter: '1', text: 'Lo fai. È il tuo migliore amico. Il sangue viene prima della legge.' },
+      { letter: '2', text: 'Gli dici di no. Non perché non gli vuoi bene, ma perché la persona che lo accusa la conosci anche tu, e ti fidi del suo giudizio. Se un professionista, un collega o qualcuno che stimi dice che il tuo amico ha sbagliato, probabilmente ha sbagliato. Gli vuoi bene, ma la verità viene da chi guarda le cose da fuori.' },
+      { letter: '3', text: 'Gli chiedi di raccontarti tutto. Tutto. Poi gli dici cosa pensi, onestamente, anche se non è quello che vuole sentire.' },
+      { letter: '4', text: 'Gli prometti che lo aiuterai e ti attivi subito. Contatti persone, cerchi soluzioni, ti esponi in prima persona. Quando qualcuno è nei guai, per te l\'importante è fare qualcosa, non restare a guardare.' },
+      { letter: '5', text: 'Non rispondi al telefono. Non adesso. Forse non mai. Certe situazioni, se le tocchi, non si risolvono più.' },
+      { letter: '6', text: 'Lo ascolti, lo abbracci, gli stai vicino. Poi vai a parlare anche con l\'altra parte, non per tradirlo ma perché senti anche il loro dolore. Cerchi di aiutare tutti, non per calcolo ma perché non riesci a stare solo da una parte quando vedi soffrire dall\'altra.' }
+    ]
+  },
+  {
+    id: 'A3',
+    text: 'Un gruppo di colleghi organizza una protesta contro una decisione della direzione che ritieni ingiusta. Ti chiedono di unirti.',
+    options: [
+      { letter: '1', text: 'Ti unisci solo se ci sono anche le persone a cui tieni. Se il tuo gruppo va, vai.' },
+      { letter: '2', text: 'Ci pensi e alla fine dai ragione alla direzione. Non per servilismo: credi che decisioni complesse vadano valutate da chi ha responsabilità e visione d\'insieme, anche quando la scelta non piace.' },
+      { letter: '3', text: 'Ascolti entrambe le parti prima di decidere. Forse la direzione ha ragioni che nessuno ha chiesto.' },
+      { letter: '4', text: 'Ti esponi subito e incoraggi gli altri a fare lo stesso. Per te certe situazioni sono evidenti: discutere troppo rischia solo di indebolire l\'azione.' },
+      { letter: '5', text: 'Non partecipi. Non è il tuo problema. Tu fai il tuo lavoro e vai a casa.' },
+      { letter: '6', text: 'Alla riunione con i colleghi, capisci la loro rabbia e la senti tua. Poi parli con il direttore e capisci anche le sue ragioni, e le senti tue. Non stai mediando. Stai portando il peso di tutti e due i lati, perché non sai stare da una parte sola quando dall\'altra c\'è qualcuno che soffre.' }
+    ]
+  }
+];
+
+// FRAMMENTI
+const FRAMMENTI_SEGNO = {
+  'Ariete': 'La tua lama è forgiata nel fuoco. Tagli prima di pensare, bruci prima di costruire. Il tuo odore è ferro caldo e polvere da sparo. Entri nel mondo come una dichiarazione di guerra che non ha bisogno di nemici.',
+  'Toro': 'La tua lama è forgiata nella terra. Non tagli: pianti. Radici così profonde che il mondo deve girarci intorno. Il tuo odore è argilla bagnata e legno stagionato. Entri nel mondo come un muro che nessuno ricorda di aver costruito.',
+  'Gemelli': 'La tua lama è forgiata nell\u2019aria. Hai due fili e nessuno sa quale taglia. Il tuo odore è inchiostro fresco e ozono. Entri nel mondo come una domanda che cambia prima della risposta.',
+  'Cancro': 'La tua lama è forgiata nell\u2019acqua. Tagli solo chi lasci entrare, e chi entra non esce più intatto. Il tuo odore è latte caldo e sale. Entri nel mondo come una marea che si ritira per tornare più forte.',
+  'Leone': 'La tua lama è forgiata nella luce. Non tagli: accendi. E chi si avvicina troppo, brucia. Il tuo odore è ambra calda e cuoio. Entri nel mondo come un palcoscenico che non ha bisogno di pubblico.',
+  'Vergine': 'La tua lama è forgiata nel silicio. Tagli con precisione chirurgica, senza una goccia di sangue fuori posto. Il tuo odore è carta e disinfettante. Entri nel mondo come una correzione che nessuno ha chiesto.',
+  'Bilancia': 'La tua lama è forgiata nel vento. Non tagli: bilanci. E quando il mondo pende da una parte, sei tu che lo raddrizzi. Il tuo odore è gelsomino e pioggia. Entri nel mondo come un\u2019equazione che cerca il segno uguale.',
+  'Scorpione': 'La tua lama è forgiata nell\u2019acqua nera. Non tagli: dissolvi. Il tuo odore è muschio e cenere bagnata. Entri nelle stanze prima della tua ombra.',
+  'Sagittario': 'La tua lama è forgiata nel vento caldo. Tagli in corsa, senza voltarti. Il tuo odore è resina e polvere di strada. Entri nel mondo come una freccia che ha dimenticato l\u2019arco.',
+  'Capricorno': 'La tua lama è forgiata nella pietra. Tagli lento, ma ogni taglio è definitivo. Il tuo odore è granito e caffè nero. Entri nel mondo come una sentenza che non ammette appello.',
+  'Acquario': 'La tua lama è forgiata nel fulmine. Tagli l\u2019aria stessa, e l\u2019aria non sarà mai più la stessa. Il tuo odore è ozono e metallo freddo. Entri nel mondo come un\u2019idea che arriva troppo presto.',
+  'Pesci': 'La tua lama è forgiata nella nebbia. Non si vede il taglio, ma il sangue c\u2019è. Il tuo odore è mare e fiori appassiti. Entri nel mondo come un sogno che non si ricorda al risveglio ma lascia un segno.'
+};
+
+const FRAMMENTI_CERVELLO = {
+  'Logico': 'Il tuo respiro è freddo. Pensi prima di sentire. Le tue decisioni nascono dalla fronte, non dal ventre. Quando sbagli, sbagli per eccesso di fiducia nei numeri. Il mondo per te è un meccanismo: se qualcosa non funziona, va smontato. Non riparato. Smontato.',
+  'Visionario': 'Il tuo respiro è irregolare. Vedi prima di guardare. Le tue decisioni nascono dal futuro, non dal presente. Quando sbagli, sbagli per eccesso di anticipo. Il mondo per te è una mappa di possibilità: se qualcosa non esiste ancora, va creato. Non atteso. Creato.',
+  'Empatico': 'Il tuo respiro è caldo. Senti prima di pensare. Le tue decisioni nascono dal ventre, non dalla fronte. Quando sbagli, sbagli per eccesso di fiducia nell\u2019altro. Il mondo per te è un campo di relazioni: se qualcosa non funziona, qualcuno sta soffrendo.',
+  'Organizzato': 'Il tuo respiro è regolare. Ordini prima di muoverti. Le tue decisioni nascono dalla lista, non dall\u2019impulso. Quando sbagli, sbagli per eccesso di controllo. Il mondo per te è un archivio: se qualcosa non ha un posto, non esiste.'
+};
+
+const FRAMMENTI_VOCE = {
+  'Assertivo': 'Il tuo codec è la dichiarazione. Non chiedi, non proponi: affermi. Le tue parole occupano lo spazio e lo chiudono. Chi ti ascolta ha due opzioni: seguire o farsi da parte. Non c\u2019è terza via.',
+  'Persuasivo': 'Il tuo codec è la seduzione argomentativa. Non ordini, non chiedi: conduci. Le tue parole costruiscono corridoi dove l\u2019altro cammina credendo di scegliere.',
+  'Aggressivo': 'Il tuo codec è l\u2019impatto. Non convinci, non seduci: occupi. Le tue parole arrivano come un pugno allo stomaco. Non è violenza: è struttura. La tua voce riempie la stanza prima del tuo corpo.',
+  'Introverso': 'Il tuo codec è il vuoto. Non parli: crei assenza. E nell\u2019assenza, gli altri proiettano tutto. Il tuo silenzio è più rumoroso della voce di chiunque altro.',
+  'Manipolatorio': 'Il tuo codec è l\u2019alterazione percettiva. Non menti: ricostruisci la realtà. Le tue parole riscrivono la mappa dell\u2019altro senza che se ne accorga. Quando capisce, è già troppo tardi.',
+  'Passivo': 'Il tuo codec è la resa. Non combatti, non resisti: cedi. Ogni volta. Ma il peso della tua resa schiaccia chi lo porta. Il tuo silenzio non è potenza trattenuta. È vuoto. Ed è pesantissimo.'
+};
+
+const FRAMMENTI_APPARTENENZA = {
+  'Tribale': 'Il tuo sangue scorre dentro casa. La tua tribù è quella che ti ha generato, o quella che hai scelto come tale. Il collega non conta. Il vicino non esiste. Il mondo finisce dove finisce la voce di chi ami. Tutto il resto è deserto.',
+  'Civico': 'Il tuo sangue scorre fuori casa. Sempre. Il collega pesa più del cugino. Il professore più del figlio. Il prete più del fratello. Non stai tra il dentro e il fuori: stai fuori. La famiglia è un rumore di fondo che disturba le relazioni che contano davvero. Quelle con il mondo.',
+  'Imparziale': 'Il tuo sangue non scorre: pesa. Vedi tutti i lati e non scegli nessuno. Non per vigliaccheria: per struttura. La tua fedeltà è alla bilancia, e la bilancia non ha sentimenti.',
+  'Fratturato': 'Il tuo sangue scorre dalla parte sbagliata. Sempre. Quando dovresti difendere i tuoi, difendi gli altri. Quando dovresti stare con gli altri, torni dai tuoi. Non è strategia: è un istinto rotto che ti porta ogni volta dalla parte che farà più danno. Sei la scheggia che taglia chi la raccoglie, e non sai nemmeno perché.',
+  'Esiliato': 'Il tuo sangue non scorre da nessuna parte. Non sei stato cacciato: te ne sei andato. Perché il rumore del mondo ti impediva di sentire l\u2019unica voce che conta — la tua. Chi ti cerca ti trova. Ma non è facile trovarti.',
+  'Universale': 'Il tuo sangue scorre ovunque, contemporaneamente. Non scegli una parte: le senti tutte. Sei con tuo figlio e sei con il professore. Sei con i colleghi e sei con la direzione. Non per equilibrio, non per diplomazia: perché hai due anime e sentono entrambe. È il dono più grande e la condanna più pesante.'
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  segno: null,
+  cervello: {}, // C1: 'A', C2: 'B', etc.
+  voce: {},     // V1: 'A', V2: 'C', etc.
+  appartenenza: {} // A1: '1', A2: '2', etc.
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function renderSigns() {
+  const grid = document.getElementById('signsGrid');
+  grid.innerHTML = SIGNS.map(s => `
+    <div class="sign-card" onclick="selectSign('${s.name}', ${s.num}, this)">
+      <span class="sign-symbol">${s.symbol}</span>
+      <span class="sign-name">${s.name}</span>
+      <span class="sign-dates">${s.dates}</span>
+    </div>
+  `).join('');
+}
+
+function renderScenari(containerId, scenari, stateKey, btnId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = scenari.map(s => `
+    <div class="scenario-block">
+      <div class="scenario-label">Scenario ${s.id}</div>
+      <div class="scenario-text">${s.text}</div>
+      ${s.options.map(o => `
+        <div class="option" onclick="selectOption('${stateKey}', '${s.id}', '${o.letter}', this, '${btnId}')">
+          <span class="option-letter">${o.letter}</span>${o.text}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function renderSteps(containerId, activeIdx) {
+  const labels = ['Segno', 'Cervello', 'Voce', 'Appartenenza'];
+  const el = document.getElementById(containerId);
+  el.innerHTML = labels.map((_, i) => {
+    const cls = i < activeIdx ? 'done' : i === activeIdx ? 'active' : '';
+    return `<div class="step-dot ${cls}"></div>`;
+  }).join('');
+}
+
+// ============================================================
+// INTERACTIONS
+// ============================================================
+
+function selectSign(name, num, el) {
+  state.segno = { name, num };
+  document.querySelectorAll('.sign-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btnSegno').disabled = false;
+}
+
+function selectOption(stateKey, scenarioId, letter, el, btnId) {
+  state[stateKey][scenarioId] = letter;
+  // Deselect siblings
+  el.parentElement.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  // Check if all scenarios answered
+  const needed = stateKey === 'cervello' ? 4 : 3;
+  if (Object.keys(state[stateKey]).length >= needed) {
+    document.getElementById(btnId).disabled = false;
+  }
+}
+
+function goTo(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Update progress & steps
+  const screens = ['screen-intro', 'screen-segno', 'screen-cervello', 'screen-voce', 'screen-appartenenza', 'screen-forging', 'screen-result'];
+  const idx = screens.indexOf(screenId);
+  const pct = (idx / (screens.length - 1)) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  // Render steps
+  const stepMap = { 'screen-segno': 0, 'screen-cervello': 1, 'screen-voce': 2, 'screen-appartenenza': 3 };
+  if (screenId in stepMap) {
+    const stepIdx = stepMap[screenId];
+    ['steps', 'steps2', 'steps3', 'steps4'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) renderSteps(id, stepIdx);
+    });
+  }
+}
+
+// ============================================================
+// CALCULATION
+// ============================================================
+
+function calculateResults() {
+  // CERVELLO: majority of A/B/C/D
+  const cervCounts = { A: 0, B: 0, C: 0, D: 0 };
+  Object.values(state.cervello).forEach(v => cervCounts[v]++);
+  const cervMax = Math.max(...Object.values(cervCounts));
+  const cervWinner = Object.keys(cervCounts).find(k => cervCounts[k] === cervMax);
+  const cervIdx = ['A', 'B', 'C', 'D'].indexOf(cervWinner); // 0-3
+  const quadrante = QUADRANTI[cervIdx];
+  const quadranteNum = cervIdx + 1;
+
+  // VOCE: majority of A-F
+  // Quiz letters: A=Assertivo, B=Persuasivo, C=Aggressivo, D=Introverso, E=Manipolatorio, F=Passivo
+  // Formula order: 1=Assertivo, 2=Persuasivo, 3=Introverso, 4=Aggressivo, 5=Manipolatorio, 6=Passivo
+  const voceCounts = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+  Object.values(state.voce).forEach(v => voceCounts[v]++);
+  const voceMax = Math.max(...Object.values(voceCounts));
+  const voceWinner = Object.keys(voceCounts).find(k => voceCounts[k] === voceMax);
+  const VOCE_LETTER_MAP = { A: 'Assertivo', B: 'Persuasivo', C: 'Aggressivo', D: 'Introverso', E: 'Manipolatorio', F: 'Passivo' };
+  const VOCE_NUM_MAP = { 'Assertivo': 1, 'Persuasivo': 2, 'Introverso': 3, 'Aggressivo': 4, 'Manipolatorio': 5, 'Passivo': 6 };
+  const voce = VOCE_LETTER_MAP[voceWinner];
+  const voceNum = VOCE_NUM_MAP[voce];
+
+  // APPARTENENZA: majority of 1-6
+  const appCounts = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 };
+  Object.values(state.appartenenza).forEach(v => appCounts[v]++);
+  const appMax = Math.max(...Object.values(appCounts));
+  const appWinner = Object.keys(appCounts).find(k => appCounts[k] === appMax);
+  const appIdx = parseInt(appWinner) - 1;
+  const appartenenza = APPARTENENZE[appIdx];
+  const appartenenzaNum = appIdx + 1;
+  const lavoroApp = LAVORI_APP[appIdx];
+
+  // SEGNO
+  const segno = state.segno.name;
+  const segnoNum = state.segno.num;
+  const lavoroZod = LAVORI_ZODIACALI[segno];
+  const ia = IA_MAP[segno];
+
+  // FORMULA: (Quadrante-1)*432 + (Voce-1)*72 + (Segno-1)*6 + Appartenenza
+  const lamaNum = (quadranteNum - 1) * 432 + (voceNum - 1) * 72 + (segnoNum - 1) * 6 + appartenenzaNum;
+
+  return {
+    segno, segnoNum, lavoroZod, ia,
+    quadrante, quadranteNum,
+    voce, voceNum,
+    appartenenza, appartenenzaNum, lavoroApp,
+    lamaNum
+  };
+}
+
+// ============================================================
+// FORGE LAMA
+// ============================================================
+
+function forgeLama() {
+  goTo('screen-forging');
+  const r = calculateResults();
+
+  const lamaNumStr = String(r.lamaNum).padStart(4, '0');
+  const formulaStr = `${r.segno}, ${r.appartenenza} — ${r.lavoroZod} ${r.lavoroApp} ${r.quadrante} ${r.voce} × ${r.ia}`;
+
+  // Breve pausa per l'effetto drammatico
+  setTimeout(() => {
+    document.getElementById('lamaNumber').textContent = lamaNumStr;
+    document.getElementById('lamaFormula').textContent = formulaStr;
+    document.getElementById('fragSegno').textContent = FRAMMENTI_SEGNO[r.segno];
+    document.getElementById('fragCervello').textContent = FRAMMENTI_CERVELLO[r.quadrante];
+    document.getElementById('fragVoce').textContent = FRAMMENTI_VOCE[r.voce];
+    document.getElementById('fragAppartenenza').textContent = FRAMMENTI_APPARTENENZA[r.appartenenza];
+
+    document.getElementById('lamaFull').innerHTML = `
+      <div class="lama-full">
+        <h3 style="text-align:center;font-size:1em;margin-bottom:4px">LAMA ${lamaNumStr}</h3>
+        <p class="center" style="color:var(--text-dim);margin-bottom:20px">${formulaStr}</p>
+        <div class="section-title">Il Segno</div>
+        <div class="section-body">${FRAMMENTI_SEGNO[r.segno]}</div>
+        <div class="section-title">Il Cervello</div>
+        <div class="section-body">${FRAMMENTI_CERVELLO[r.quadrante]}</div>
+        <div class="section-title">La Voce</div>
+        <div class="section-body">${FRAMMENTI_VOCE[r.voce]}</div>
+        <div class="section-title">L'Appartenenza</div>
+        <div class="section-body">${FRAMMENTI_APPARTENENZA[r.appartenenza]}</div>
+      </div>
+      <p class="center dim" style="margin-top:24px">Per forgiare la Lama completa — con nome, odore, frase, sangue, codec e mini-sigillo — usa il Generatore del Capitolo 8 di apocalips(IA).</p>
+    `;
+
+    goTo('screen-result');
+  }, 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+renderSigns();
+renderScenari('cervelloScenari', SCENARI_CERVELLO, 'cervello', 'btnCervello');
+renderScenari('voceScenari', SCENARI_VOCE, 'voce', 'btnVoce');
+renderScenari('appartenenzaScenari', SCENARI_APPARTENENZA, 'appartenenza', 'btnAppartenenza');
+
+</script>
+</body>
+</html>
